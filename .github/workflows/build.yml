@@ -1,0 +1,55 @@
+name: RDX APK Auto-Builder
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Extract Project Zip
+      run: |
+        echo "Unzipping RDX.zip..."
+        unzip RDX.zip -d extracted_project
+        ls -la extracted_project
+
+    - name: Install Buildozer & System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+        pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Build APK via Buildozer
+      run: |
+        cd extracted_project
+        # Agar zip ke andar folder ka naam 'RDX AI Studio' hai toh usme enter karein
+        if [ -d "RDX AI Studio" ]; then
+          cd "RDX AI Studio"
+        fi
+        
+        if [ ! -f "buildozer.spec" ]; then
+            buildozer init
+        fi
+        
+        # Requirements configure karna
+        sed -i 's/#requirements = python3,kivy/requirements = python3,kivy,yt-dlp,requests,urllib3,certifi/g' buildozer.spec
+        
+        # APK build karna
+        buildozer -v android debug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: rdx-apk-output
+        path: extracted_project/**/bin/*.apk
